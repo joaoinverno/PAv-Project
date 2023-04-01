@@ -4,80 +4,48 @@
 #
 #
 
-#####################
-### 2.1 - Classes ###
-#####################
 
-###
-### This structure is used
-### for keeping the defined classes
-### Key     -->    Class name
-### Value   -->    Class struct
-### 
+### Macros
 
-classesDictionary = Dict();
-
-
-struct Class 
-    name
-    superClasses::Vector
-    slotNames::Vector
-end
-
-macro defclass(name, superClasses::Vector, slotNames::Vector)
+macro defclass(name, superClasses, slotNames)
     quote
-        newClass = Class(name, superClasses, slotNames);
-        # Should probably check if the name already exists
-        # And maybe throw some error if it does
-        classesDictionary[name] = newClass;
+        print("Hello");
     end
 end
 
-#######################
-### 2.2 - Instances ###
-#######################
-
-function new(className, slotVals...)
-    # Should probably check if the className exists
-    # And maybe throw some error if it does not
-
-    # Loop over slot values
-    for slotVal in slotVals
-        # Do something
+macro defgeneric(name, args...)
+    quote
+        print("Hello again");
     end
+end
 
+macro defmethod(name, args...)
+    quote
+        print("Hello... again");
+    end
 end
 
 
-#########################
-### 2.3 - Slot Access ###
-#########################
+### Functions
 
+# Dynamically create Classes
+function create_class(struct_name::Symbol, field_names::Vector{Symbol})
+    # Define the struct type dynamically using the @eval macro
+    @eval mutable struct $struct_name
+        $(map(field_names) do field_name
+            # Define each field dynamically using the :($...) macro
+            :($field_name::$Any)
+        end...)
+    end
+end
 
-###########################################
-### 2.4 - Generic Functions and Methods ###
-###########################################
+function new(class, slotVals...)
+    c = class(slotVals...)
+    return c
+end
 
+create_class(:ComplexNumber, [:real, :imag])
 
-#######################################################
-### 2.5 - Pre-defined Generic Functions and Methods ###
-#######################################################
-
-
-#########################
-### 2.6 - MetaObjects ###
-#########################
-
-
-###########################
-### 2.7 - Class Options ###
-###########################
-
-
-#################################
-### 2.8 - Readers and Writers ###
-#################################
-
-
-
-print("Hello")
+c1 = new(ComplexNumber, 1, 2)
+c1.real += 2
+print(getproperty(c1, :real))
