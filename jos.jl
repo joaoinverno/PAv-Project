@@ -60,10 +60,13 @@ create_class(:ComplexNumber, [:real, :imag])
 
 # Create an instance of ComplexNumber and test its class
 c1 = new(ComplexNumber, 1, 2)
-println(class_of(c1) === ComplexNumber) # true
+
 
 # Test modifying a slot of the instance
 c1.real += 2
 println(getproperty(c1, :real)) # 3
+
+
+println(class_of(c1) === ComplexNumber) # true
 class_of(class_of(c1)) === Class
 class_of(class_of(class_of(c1))) === Class
