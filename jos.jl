@@ -25,15 +25,12 @@ macro defmethod(name, args...)
     end
 end
 
-
-### Functions
+abstract type Class end
 
 # Dynamically create Classes
 function create_class(struct_name::Symbol, field_names::Vector{Symbol})
-    # Define the struct type dynamically using the @eval macro
-    @eval mutable struct $struct_name
+    @eval mutable struct $struct_name <: Class
         $(map(field_names) do field_name
-            # Define each field dynamically using the :($...) macro
             :($field_name::$Any)
         end...)
     end
@@ -44,8 +41,29 @@ function new(class, slotVals...)
     return c
 end
 
+function class_of(c)
+    if c == Class
+        return Class
+    else 
+        t = typeof(c)
+        super_type = supertype(t) 
+        if super_type == Class       
+            return t
+        else
+            return supertype(c)
+        end
+    end
+end
+
+# Define the ComplexNumber class
 create_class(:ComplexNumber, [:real, :imag])
 
+# Create an instance of ComplexNumber and test its class
 c1 = new(ComplexNumber, 1, 2)
+println(class_of(c1) === ComplexNumber) # true
+
+# Test modifying a slot of the instance
 c1.real += 2
-print(getproperty(c1, :real))
+println(getproperty(c1, :real)) # 3
+class_of(class_of(c1)) === Class
+class_of(class_of(class_of(c1))) === Class
