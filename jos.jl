@@ -70,3 +70,28 @@ println(getproperty(c1, :real)) # 3
 println(class_of(c1) === ComplexNumber) # true
 class_of(class_of(c1)) === Class
 class_of(class_of(class_of(c1))) === Class
+
+# Deals witht the different slots formats
+function slots(x::Any)
+    if typeof(x) == Symbol
+        return [x]
+    elseif typeof(x) == Expr
+        if length(x.args) == 2
+            return [x.args[1], eval(x)]
+        elseif length(x.args) == 3
+            if typeof(x.args[1]) == Symbol
+                return [x.args[1], x.args[2].args[2], x.args[3].args[2], missing]
+            else
+                return [x.args[1].args[1], x.args[2].args[2], x.args[3].args[2], x.args[1].args[2]]
+            end
+        elseif length(x.args) == 4
+            return [x.args[1].args[2], x.args[2].args[2], x.args[3].args[2], x.args[4].args[2]]
+        end
+    end
+end
+
+slots(:foo)
+slots(:(foo=123))
+slots(:[foo=123, reader=get_foo, writer=set_foo!])
+slots(:[friend, reader=get_friend, writer=set_friend!])
+
