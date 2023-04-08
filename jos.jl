@@ -4,6 +4,13 @@
 #
 #
 
+### Auxiliary functions
+
+# Build the args for a generic method
+function typesWithArgs(args::Vector{Symbol}, arg_types::Vector{Symbol})
+    output = join([string(args[i], "::", arg_types[i]) for i in 1:length(args)], ", ")
+    return output
+end
 
 ### Macros
 
@@ -25,22 +32,56 @@ macro defmethod(name, args...)
     end
 end
 
+### Types
+
 abstract type Class end
 
-# Dynamically create Classes
-function create_class(struct_name::Symbol, field_names::Vector{Symbol})
-    @eval mutable struct $struct_name <: Class
+### Main functions
+
+# Dynamically create Classes - With field names
+function create_class(class_name::Symbol, field_names::Vector{Symbol})
+    @eval mutable struct $class_name <: Class
         $(map(field_names) do field_name
             :($field_name::$Any)
         end...)
     end
 end
 
+# Dynamically create Classes - Applies to empty field_name vectors
+# Creates struct with no fields
+function create_class(class_name::Symbol, ::Vector{Any} = [])
+    @eval mutable struct $class_name <: Class end
+end
+
+# Create instances from existing classes
 function new(class, slotVals...)
     c = class(slotVals...)
     return c
 end
 
+# Create generic functions
+function create_gen_func(func_name::Symbol, args::Vector{Symbol})
+    arg_string = join(args, ", ")
+    func_string = "function $func_name($arg_string)\n  error(\"No generic method has been defined for the function $func_name with args $args\")\nend"
+    eval(Meta.parse(func_string))
+end
+
+# Create generic methods
+function create_gen_method(func_name::Symbol, args::Vector{Symbol}, arg_types::Vector{Symbol}, func_body)
+    # Q: Does the generic function exist
+    if !isdefined(Main, func_name)
+        #A: No, we have to define it
+        arg_string = join(args, ", ")
+        func_string = "function $func_name($arg_string)\n  error(\"No generic method has been defined for the function $func_name with args $args\")\nend"
+        eval(Meta.parse(func_string))
+    else
+        args_with_types = typesWithArgs(args, arg_types)
+        func_string = "function $func_name($args_with_types)\n  $func_body\nend"
+        eval(Meta.parse(func_string))
+    end
+end
+
+### Gets class name of instance c
 function class_of(c)
     if c == Class
         return Class
@@ -55,23 +96,7 @@ function class_of(c)
     end
 end
 
-# Define the ComplexNumber class
-create_class(:ComplexNumber, [:real, :imag])
-
-# Create an instance of ComplexNumber and test its class
-c1 = new(ComplexNumber, 1, 2)
-
-
-# Test modifying a slot of the instance
-c1.real += 2
-println(getproperty(c1, :real)) # 3
-
-
-println(class_of(c1) === ComplexNumber) # true
-class_of(class_of(c1)) === Class
-class_of(class_of(class_of(c1))) === Class
-
-# Deals witht the different slots formats
+# Deals with the different slots formats
 function slots(x::Any)
     if typeof(x) == Symbol
         return [x]
@@ -90,8 +115,33 @@ function slots(x::Any)
     end
 end
 
-slots(:foo)
-slots(:(foo=123))
-slots(:[foo=123, reader=get_foo, writer=set_foo!])
-slots(:[friend, reader=get_friend, writer=set_friend!])
+### Playground
+
+create_class(:Line, [:from, :to])
+
+create_class(:Circle, [:center, :radius])
+
+create_class(:Screen, [])
+
+create_class(:Printer, [])
+
+create_gen_func(:draw, [:shape, :device])
+
+create_gen_method(:draw, [:shape, :device], [:Line, :Screen], "println(\"Drawing a Line on Screen\")")
+
+create_gen_method(:draw, [:shape, :device], [:Circle, :Screen], "println(\"Drawing a Circle on Screen\")")
+
+create_gen_method(:draw, [:shape, :device], [:Line, :Printer], "println(\"Drawing a Line on Printer\")")
+
+create_gen_method(:draw, [:shape, :device], [:Circle, :Printer], "println(\"Drawing a Circle on Printer\")")
+
+let devices = [new(Screen), new(Printer)],
+    shapes = [new(Line, 1, 2), new(Circle, 1, 2)]
+    for device in devices
+        for shape in shapes
+            draw(shape, device)
+        end
+    end
+end
+    
 
