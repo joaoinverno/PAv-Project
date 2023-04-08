@@ -14,11 +14,13 @@ end
 
 ### Macros
 
+
 macro defclass(name, superClasses, slotNames)
     quote
         print("Hello");
     end
 end
+
 
 macro defgeneric(name, args...)
     quote
@@ -39,12 +41,27 @@ abstract type Class end
 ### Main functions
 
 # Dynamically create Classes - With field names
+
 function create_class(class_name::Symbol, field_names::Vector{Symbol})
     @eval mutable struct $class_name <: Class
-        $(map(field_names) do field_name
-            :($field_name::$Any)
+        $(map(field_names) do field_name 
+            slot = slots(:($field_name))
+            if length(slot) == 1 || (length(slot) == 4 && slot[4] == missing)
+                :($slot[1]::$Any)
+            elseif length(slot) == 2
+                :($slot[1]::$Any = slot[2])
+            elseif length(slot) == 4 && slot[4] != missing
+                println(slot[4])
+                getter_setter(:slot[2],:slot[3],$class_name,slot[1])
+                :($slot[1]::$Any = slot[4])
+            end
         end...)
     end
+end
+
+function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
+    create_gen_method(name_getter, [:o], [class_name], "println(\"Escrever codigo aqui\")")
+    create_gen_method(name_setter, [:o, v], [class_name, :typeof(v)], "println(\"Escrever codigo aqui\")")
 end
 
 # Dynamically create Classes - Applies to empty field_name vectors
@@ -54,8 +71,9 @@ function create_class(class_name::Symbol, ::Vector{Any} = [])
 end
 
 # Create instances from existing classes
-function new(class, slotVals...)
-    c = class(slotVals...)
+
+function new(class, kwargs...)
+    c = class(kwargs...)
     return c
 end
 
@@ -99,6 +117,7 @@ end
 # Deals with the different slots formats
 function slots(x::Any)
     if typeof(x) == Symbol
+        println("Oi gentxi")
         return [x]
     elseif typeof(x) == Expr
         if length(x.args) == 2
@@ -143,5 +162,20 @@ let devices = [new(Screen), new(Printer)],
         end
     end
 end
-    
 
+
+slots(:foo)
+slots(:(foo=123))
+slots(:[foo=123, reader=get_foo, writer=set_foo!])
+slots(:[friend, reader=get_friend, writer=set_friend!])
+
+# Define the ComplexNumber class
+create_class(:ComplexNumber, [:(real=2), :imag])
+
+# Create an instance of ComplexNumber and test its class
+c1 = new(ComplexNumber, 1, 2)
+
+
+# Test modifying a slot of the instance
+c1.real += 2
+println(getproperty(c1, :real)) # 3
