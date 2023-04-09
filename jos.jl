@@ -4,6 +4,7 @@
 #
 #
 
+using Parameters
 ### Auxiliary functions
 
 # Build the args for a generic method
@@ -42,38 +43,48 @@ abstract type Class end
 
 # Dynamically create Classes - With field names
 
-function create_class(class_name::Symbol, field_names::Vector{Symbol})
-    @eval mutable struct $class_name <: Class
-        $(map(field_names) do field_name 
-            slot = slots(:($field_name))
-            if length(slot) == 1 || (length(slot) == 4 && slot[4] == missing)
-                :($slot[1]::$Any)
+function create_class(class_name::Symbol, field_slots::Vector)
+
+    if isempty(field_slots)
+        @eval mutable struct $class_name <: Class end
+    else
+        field_decls = map(field_slots) do field
+            slot = slots(:($field))
+            field_name = slot[1]
+            if length(slot) == 1
+                :($field_name::$Any)
             elseif length(slot) == 2
-                :($slot[1]::$Any = slot[2])
+                :($field_name::$Any = $(slot[2]))
             elseif length(slot) == 4 && slot[4] != missing
-                println(slot[4])
-                getter_setter(:slot[2],:slot[3],$class_name,slot[1])
-                :($slot[1]::$Any = slot[4])
+                :($field_name::$Any = $(slot[4]))
             end
-        end...)
+        end
+
+        @eval @with_kw mutable struct $class_name <: Class
+            $(field_decls...)
+        end
     end
 end
 
 function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
-    create_gen_method(name_getter, [:o], [class_name], "println(\"Escrever codigo aqui\")")
-    create_gen_method(name_setter, [:o, v], [class_name, :typeof(v)], "println(\"Escrever codigo aqui\")")
+    create_gen_func(name_getter,[:o])
+    create_gen_func(name_setter,[:o,:v])
+    create_gen_method(name_getter, [:o], [class_name], "return o.$var_name")
+    create_gen_method(name_setter, [:o, :v], [class_name, :Any], "o.$var_name = v")
 end
 
 # Dynamically create Classes - Applies to empty field_name vectors
 # Creates struct with no fields
+
+#=
 function create_class(class_name::Symbol, ::Vector{Any} = [])
     @eval mutable struct $class_name <: Class end
-end
+end=#
 
 # Create instances from existing classes
 
-function new(class, kwargs...)
-    c = class(kwargs...)
+function new(class::Type{T}; kwargs...) where {T}
+    c = class(; kwargs...)
     return c
 end
 
@@ -96,6 +107,7 @@ function create_gen_method(func_name::Symbol, args::Vector{Symbol}, arg_types::V
         args_with_types = typesWithArgs(args, arg_types)
         func_string = "function $func_name($args_with_types)\n  $func_body\nend"
         eval(Meta.parse(func_string))
+        println(func_string)
     end
 end
 
@@ -117,7 +129,6 @@ end
 # Deals with the different slots formats
 function slots(x::Any)
     if typeof(x) == Symbol
-        println("Oi gentxi")
         return [x]
     elseif typeof(x) == Expr
         if length(x.args) == 2
@@ -155,7 +166,7 @@ create_gen_method(:draw, [:shape, :device], [:Line, :Printer], "println(\"Drawin
 create_gen_method(:draw, [:shape, :device], [:Circle, :Printer], "println(\"Drawing a Circle on Printer\")")
 
 let devices = [new(Screen), new(Printer)],
-    shapes = [new(Line, 1, 2), new(Circle, 1, 2)]
+    shapes = [new(Line, from = 1, to = 2), new(Circle, center=1, radius=2)]
     for device in devices
         for shape in shapes
             draw(shape, device)
@@ -171,11 +182,21 @@ slots(:[friend, reader=get_friend, writer=set_friend!])
 
 # Define the ComplexNumber class
 create_class(:ComplexNumber, [:(real=2), :imag])
-
+println(fieldnames(ComplexNumber))
 # Create an instance of ComplexNumber and test its class
-c1 = new(ComplexNumber, 1, 2)
-
-
+c1 = new(ComplexNumber, imag= 3)
 # Test modifying a slot of the instance
 c1.real += 2
-println(getproperty(c1, :real)) # 3
+println(getproperty(c1, :real)) # 4
+println(getproperty(c1, :imag)) # 3
+
+#Testing method generation
+create_gen_func(:add, [:a,:b])
+create_gen_method(:add, [:a,:b], [:Int64,:Int64], "return a + b")
+println(add(1,2))
+
+#Testing getter and setter method
+getter_setter(:get_real,:set_real,:ComplexNumber,:real)
+get_real(c1)
+set_real(c1,5)
+println(getproperty(c1, :real)) # 5
