@@ -44,7 +44,6 @@ abstract type Class end
 # Dynamically create Classes - With field names
 
 function create_class(class_name::Symbol, field_slots::Vector)
-
     if isempty(field_slots)
         @eval mutable struct $class_name <: Class end
     else
@@ -55,14 +54,25 @@ function create_class(class_name::Symbol, field_slots::Vector)
                 :($field_name::$Any)
             elseif length(slot) == 2
                 :($field_name::$Any = $(slot[2]))
-            elseif length(slot) == 4 && slot[4] != missing
+            elseif length(slot) == 4 && !ismissing(slot[4])
                 :($field_name::$Any = $(slot[4]))
+            elseif length(slot) == 4 && ismissing(slot[4])
+                :($field_name::$Any)
             end
         end
+
 
         @eval @with_kw mutable struct $class_name <: Class
             $(field_decls...)
         end
+
+        for field in field_slots
+            slot = slots(field)
+            if length(slot) == 4
+                getter_setter(slot[2],slot[3],class_name,slot[1])
+            end
+        end
+
     end
 end
 
@@ -107,7 +117,6 @@ function create_gen_method(func_name::Symbol, args::Vector{Symbol}, arg_types::V
         args_with_types = typesWithArgs(args, arg_types)
         func_string = "function $func_name($args_with_types)\n  $func_body\nend"
         eval(Meta.parse(func_string))
-        println(func_string)
     end
 end
 
@@ -181,7 +190,7 @@ slots(:[foo=123, reader=get_foo, writer=set_foo!])
 slots(:[friend, reader=get_friend, writer=set_friend!])
 
 # Define the ComplexNumber class
-create_class(:ComplexNumber, [:(real=2), :imag])
+create_class(:ComplexNumber, [:[real=2, reader=get_real, writer=set_real!],:[imag, reader=get_imag, writer=set_imag!]])
 println(fieldnames(ComplexNumber))
 # Create an instance of ComplexNumber and test its class
 c1 = new(ComplexNumber, imag= 3)
@@ -196,7 +205,10 @@ create_gen_method(:add, [:a,:b], [:Int64,:Int64], "return a + b")
 println(add(1,2))
 
 #Testing getter and setter method
-getter_setter(:get_real,:set_real,:ComplexNumber,:real)
+#getter_setter(:get_real,:set_real,:ComplexNumber,:real)
 get_real(c1)
-set_real(c1,5)
+set_real!(c1,5)
 println(getproperty(c1, :real)) # 5
+get_imag(c1)
+set_imag!(c1,8)
+println(getproperty(c1, :imag)) # 8
