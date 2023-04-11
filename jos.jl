@@ -50,9 +50,9 @@ function create_class(class_name::Symbol, field_slots::Vector)
         field_decls = map(field_slots) do field
             slot = slots(:($field))
             field_name = slot[1]
-            if length(slot) == 1
+            if length(slot) == 2 && ismissing(slot[2])
                 :($field_name::$Any)
-            elseif length(slot) == 2
+            elseif length(slot) == 2 && !ismissing(slot[2])
                 :($field_name::$Any = $(slot[2]))
             elseif length(slot) == 4 && !ismissing(slot[4])
                 :($field_name::$Any = $(slot[4]))
@@ -202,7 +202,7 @@ println(getproperty(c1, :imag)) # 3
 #Testing method generation
 create_gen_func(:add, [:a,:b])
 create_gen_method(:add, [:a,:b], [:Int64,:Int64], "return a + b")
-println(add(1,2))
+println(add(1,2)) #3
 
 #Testing getter and setter method
 #getter_setter(:get_real,:set_real,:ComplexNumber,:real)
