@@ -138,7 +138,7 @@ end
 # Deals with the different slots formats
 function slots(x::Any)
     if typeof(x) == Symbol
-        return [x]
+        return [x, missing]
     elseif typeof(x) == Expr
         if length(x.args) == 2
             return [x.args[1], eval(x)]
