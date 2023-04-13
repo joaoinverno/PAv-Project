@@ -14,6 +14,25 @@ function topological_sort(graph)
     
 end
 
+# Deals with the different slots formats
+function slots(x::Any)
+    if typeof(x) == Symbol
+        return [x, missing]
+    elseif typeof(x) == Expr
+        if length(x.args) == 2
+            return [x.args[1], eval(x)]
+        elseif length(x.args) == 3
+            if typeof(x.args[1]) == Symbol
+                return [x.args[1], x.args[2].args[2], x.args[3].args[2], missing]
+            else
+                return [x.args[1].args[1], x.args[2].args[2], x.args[3].args[2], x.args[1].args[2]]
+            end
+        elseif length(x.args) == 4
+            return [x.args[1].args[2], x.args[2].args[2], x.args[3].args[2], x.args[4].args[2]]
+        end
+    end
+end
+
 # Build the args for a generic method
 function typesWithArgs(args::Vector{Symbol}, arg_types::Vector{Symbol})
     output = join([string(args[i], "::", arg_types[i]) for i in 1:length(args)], ", ")
@@ -85,7 +104,7 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
             field_name = slot[1]
             if length(slot) == 1
                 :($field_name::$Any)
-            elseif length(slot) == 2
+            elseif length(slot) == 2 
                 :($field_name::$Any = $(slot[2]))
             elseif length(slot) == 4 && !ismissing(slot[4])
                 :($field_name::$Any = $(slot[4]))
@@ -157,7 +176,6 @@ function class_of(c)
         end
     end
 end
-
 ### Playground
 
 create_class(:Line, [:from, :to], [])
@@ -194,7 +212,7 @@ slots(:[foo=123, reader=get_foo, writer=set_foo!])
 slots(:[friend, reader=get_friend, writer=set_friend!])
 
 # Define the ComplexNumber class
-create_class(:ComplexNumber, [:[real=2, reader=get_real, writer=set_real!],:[imag, reader=get_imag, writer=set_imag!]])
+create_class(:ComplexNumber, [:[real=2, reader=get_real, writer=set_real!],:[imag, reader=get_imag, writer=set_imag!]], [])
 println(fieldnames(ComplexNumber))
 # Create an instance of ComplexNumber and test its class
 c1 = new(ComplexNumber, imag= 3)
@@ -206,7 +224,7 @@ println(getproperty(c1, :imag)) # 3
 #Testing method generation
 create_gen_func(:add, [:a,:b])
 create_gen_method(:add, [:a,:b], [:Int64,:Int64], "return a + b")
-println(add(1,2))
+println(add(1,2)) #3
 
 #Testing getter and setter method
 #getter_setter(:get_real,:set_real,:ComplexNumber,:real)
