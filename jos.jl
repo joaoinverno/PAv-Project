@@ -4,13 +4,44 @@
 #
 #
 
+### Imports
+
 using Parameters
+
 ### Auxiliary functions
+
+function topological_sort(graph)
+    
+end
 
 # Build the args for a generic method
 function typesWithArgs(args::Vector{Symbol}, arg_types::Vector{Symbol})
     output = join([string(args[i], "::", arg_types[i]) for i in 1:length(args)], ", ")
     return output
+end
+
+# Throws error in case generic function or method is used incorrectly
+function throwGenericError(func_name, args)
+    error("ERROR: No applicable method for function $func_name with arguments $args")
+end
+
+# Deals with the different slots formats
+function slots(x::Any)
+    if typeof(x) == Symbol
+        return [x]
+    elseif typeof(x) == Expr
+        if length(x.args) == 2
+            return [x.args[1], eval(x)]
+        elseif length(x.args) == 3
+            if typeof(x.args[1]) == Symbol
+                return [x.args[1], x.args[2].args[2], x.args[3].args[2], missing]
+            else
+                return [x.args[1].args[1], x.args[2].args[2], x.args[3].args[2], x.args[1].args[2]]
+            end
+        elseif length(x.args) == 4
+            return [x.args[1].args[2], x.args[2].args[2], x.args[3].args[2], x.args[4].args[2]]
+        end
+    end
 end
 
 ### Macros
@@ -35,15 +66,17 @@ macro defmethod(name, args...)
     end
 end
 
+
 ### Types
 
 abstract type Class end
 
+inh_graph = []
+
 ### Main functions
 
 # Dynamically create Classes - With field names
-
-function create_class(class_name::Symbol, field_slots::Vector)
+function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vector)
     if isempty(field_slots)
         @eval mutable struct $class_name <: Class end
     else
@@ -74,25 +107,16 @@ function create_class(class_name::Symbol, field_slots::Vector)
         end
 
     end
+    # set superClasses in inheritance graph
+    append!(inh_graph, Dict(class_name => superclasses))
 end
 
 function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
-    create_gen_func(name_getter,[:o])
-    create_gen_func(name_setter,[:o,:v])
     create_gen_method(name_getter, [:o], [class_name], "return o.$var_name")
     create_gen_method(name_setter, [:o, :v], [class_name, :Any], "o.$var_name = v")
 end
 
-# Dynamically create Classes - Applies to empty field_name vectors
-# Creates struct with no fields
-
-#=
-function create_class(class_name::Symbol, ::Vector{Any} = [])
-    @eval mutable struct $class_name <: Class end
-end=#
-
 # Create instances from existing classes
-
 function new(class::Type{T}; kwargs...) where {T}
     c = class(; kwargs...)
     return c
@@ -101,7 +125,7 @@ end
 # Create generic functions
 function create_gen_func(func_name::Symbol, args::Vector{Symbol})
     arg_string = join(args, ", ")
-    func_string = "function $func_name($arg_string)\n  error(\"No generic method has been defined for the function $func_name with args $args\")\nend"
+    func_string = "function $func_name($arg_string)\n   throwGenericError($func_name, $args)\nend"
     eval(Meta.parse(func_string))
 end
 
@@ -111,13 +135,12 @@ function create_gen_method(func_name::Symbol, args::Vector{Symbol}, arg_types::V
     if !isdefined(Main, func_name)
         #A: No, we have to define it
         arg_string = join(args, ", ")
-        func_string = "function $func_name($arg_string)\n  error(\"No generic method has been defined for the function $func_name with args $args\")\nend"
-        eval(Meta.parse(func_string))
-    else
-        args_with_types = typesWithArgs(args, arg_types)
-        func_string = "function $func_name($args_with_types)\n  $func_body\nend"
+        func_string = "function $func_name($arg_string)\n   throwGenericError($func_name, $args)\nend"
         eval(Meta.parse(func_string))
     end
+    args_with_types = typesWithArgs(args, arg_types)
+    func_string = "function $func_name($args_with_types)\n  $func_body\nend"
+    eval(Meta.parse(func_string))
 end
 
 ### Gets class name of instance c
@@ -135,34 +158,15 @@ function class_of(c)
     end
 end
 
-# Deals with the different slots formats
-function slots(x::Any)
-    if typeof(x) == Symbol
-        return [x]
-    elseif typeof(x) == Expr
-        if length(x.args) == 2
-            return [x.args[1], eval(x)]
-        elseif length(x.args) == 3
-            if typeof(x.args[1]) == Symbol
-                return [x.args[1], x.args[2].args[2], x.args[3].args[2], missing]
-            else
-                return [x.args[1].args[1], x.args[2].args[2], x.args[3].args[2], x.args[1].args[2]]
-            end
-        elseif length(x.args) == 4
-            return [x.args[1].args[2], x.args[2].args[2], x.args[3].args[2], x.args[4].args[2]]
-        end
-    end
-end
-
 ### Playground
 
-create_class(:Line, [:from, :to])
+create_class(:Line, [:from, :to], [])
 
-create_class(:Circle, [:center, :radius])
+create_class(:Circle, [:center, :radius], [])
 
-create_class(:Screen, [])
+create_class(:Screen, [], [])
 
-create_class(:Printer, [])
+create_class(:Printer, [], [])
 
 create_gen_func(:draw, [:shape, :device])
 
