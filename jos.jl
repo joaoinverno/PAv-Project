@@ -11,7 +11,49 @@ using Parameters
 ### Auxiliary functions
 
 function topological_sort(graph)
-    
+    branches::Dict = Dict()
+    sources::Dict = Dict()
+    toVisit::Vector{Symbol} = []
+    order::Vector{Symbol} = []
+    visited::Dict{Symbol, Bool} = Dict()
+    isSource::Dict{Symbol, Bool} = Dict()
+
+    for cclass in graph
+        if cclass !== nothing
+            merge!(visited, Dict(cclass.first => false))
+            merge!(isSource, Dict(cclass.first => true))
+        end
+
+    end
+
+    for cclass in graph
+        for c in graph[cclass.first]
+            if isSource[c]
+                isSource[c] = false
+            end
+        end
+    end
+
+    for cclass in graph
+        if isSource[cclass.first]
+            merge!(sources, Dict(cclass))
+            push!(order, cclass.first)
+        end
+    end
+
+    for cclass in graph
+        if !visited[cclass.first]
+            visited[cclass.first] = true
+            for sclass in graph[cclass.first]
+                push!(toVisit, sclass)
+            end
+            for c in toVisit
+                merge!(branches, Dict(c => graph[c]))
+                append!(order, topological_sort(branches))
+            end
+        end
+    end
+    return order
 end
 
 # Deals with the different slots formats
@@ -95,7 +137,7 @@ end
 
 classes = Dict()
 
-inh_graph = []
+inh_graph::Dict = Dict()
 
 ### Main functions
 
@@ -155,8 +197,7 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
     end
 
     # set superClasses in inheritance graph
-    append!(inh_graph, Dict(class_name => superclasses))
-
+    merge!(inh_graph, Dict(class_name => superclasses))
 end
 
 function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
@@ -267,3 +308,7 @@ println(getproperty(c1, :real)) # 5
 get_imag(c1)
 set_imag!(c1,8)
 println(getproperty(c1, :imag)) # 8
+println(topological_sort(inh_graph))
+create_class(:SpecialPrinter, [], [:Printer])
+println(inh_graph)
+println(topological_sort(inh_graph))
