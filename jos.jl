@@ -47,7 +47,7 @@ end
 # Deals with the different slots formats
 function slots(x::Any)
     if typeof(x) == Symbol
-        return [x]
+        return [x, missing]
     elseif typeof(x) == Expr
         if length(x.args) == 2
             return [x.args[1], eval(x)]
@@ -88,7 +88,12 @@ end
 
 ### Types
 
-abstract type Class end
+struct Class
+    name::Symbol
+    direct_slots::Array{Symbol}
+end
+
+classes = Dict()
 
 inh_graph = []
 
@@ -96,15 +101,28 @@ inh_graph = []
 
 # Dynamically create Classes - With field names
 function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vector)
+
+    new_class_name = Symbol(class_name,"Class")
+    direct_slots = []
     if isempty(field_slots)
-        @eval mutable struct $class_name <: Class end
+        @eval mutable struct $new_class_name end
+
+        #adds class to Dict
+        classes[class_name] = eval(new_class_name)
+
+        #creates global variable
+        aux = Class(class_name,direct_slots)
+        globalvar = Symbol("$(class_name)")
+        @eval global $globalvar = $aux
+
     else
         field_decls = map(field_slots) do field
             slot = slots(:($field))
             field_name = slot[1]
-            if length(slot) == 1
+            append!(direct_slots,[slot[1]])
+            if length(slot) == 2 && ismissing(slot[2])
                 :($field_name::$Any)
-            elseif length(slot) == 2 
+            elseif length(slot) == 2 && !ismissing(slot[2])
                 :($field_name::$Any = $(slot[2]))
             elseif length(slot) == 4 && !ismissing(slot[4])
                 :($field_name::$Any = $(slot[4]))
@@ -114,10 +132,19 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
         end
 
 
-        @eval @with_kw mutable struct $class_name <: Class
+        @eval @with_kw mutable struct $new_class_name
             $(field_decls...)
         end
 
+        #adds class to Dict
+        classes[class_name] = eval(new_class_name)
+
+        #creates global variable
+        aux = Class(class_name,direct_slots)
+        globalvar = Symbol("$(class_name)")
+        @eval global $globalvar = $aux
+
+        #create reader and writer
         for field in field_slots
             slot = slots(field)
             if length(slot) == 4
@@ -126,8 +153,10 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
         end
 
     end
+
     # set superClasses in inheritance graph
     append!(inh_graph, Dict(class_name => superclasses))
+
 end
 
 function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
@@ -136,9 +165,9 @@ function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbo
 end
 
 # Create instances from existing classes
-function new(class::Type{T}; kwargs...) where {T}
-    c = class(; kwargs...)
-    return c
+function new(class_name::Class; kwargs...)
+    c = classes[class_name.name]
+    return c(; kwargs...)
 end
 
 # Create generic functions
@@ -157,6 +186,8 @@ function create_gen_method(func_name::Symbol, args::Vector{Symbol}, arg_types::V
         func_string = "function $func_name($arg_string)\n   throwGenericError($func_name, $args)\nend"
         eval(Meta.parse(func_string))
     end
+
+    replace!(x -> haskey(classes,x) ? Symbol(x,"Class") : x, arg_types)
     args_with_types = typesWithArgs(args, arg_types)
     func_string = "function $func_name($args_with_types)\n  $func_body\nend"
     eval(Meta.parse(func_string))
@@ -166,14 +197,11 @@ end
 function class_of(c)
     if c == Class
         return Class
-    else 
-        t = typeof(c)
-        super_type = supertype(t) 
-        if super_type == Class       
-            return t
-        else
-            return supertype(c)
-        end
+    elseif typeof(c) === Class
+        return typeof(c)
+    else
+        aux = chop(string(Symbol(typeof(c))),tail=5)
+        return eval(Symbol(aux))
     end
 end
 ### Playground
@@ -213,9 +241,14 @@ slots(:[friend, reader=get_friend, writer=set_friend!])
 
 # Define the ComplexNumber class
 create_class(:ComplexNumber, [:[real=2, reader=get_real, writer=set_real!],:[imag, reader=get_imag, writer=set_imag!]], [])
-println(fieldnames(ComplexNumber))
 # Create an instance of ComplexNumber and test its class
 c1 = new(ComplexNumber, imag= 3)
+
+#test class_of function
+println(class_of(c1) === ComplexNumber)
+println(class_of(class_of(c1)) === Class)
+println(class_of(class_of(class_of(c1))) === Class)
+
 # Test modifying a slot of the instance
 c1.real += 2
 println(getproperty(c1, :real)) # 4
