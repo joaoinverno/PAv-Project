@@ -314,6 +314,8 @@ println(getproperty(c1, :real)) # 5
 get_imag(c1)
 set_imag!(c1,8)
 println(getproperty(c1, :imag)) # 8
+
+#Testing topological sorting
 println(topological_sort(inh_graph))
 create_class(:SpecialPrinter, [], [:Printer])
 println(inh_graph)
