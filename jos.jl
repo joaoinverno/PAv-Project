@@ -14,7 +14,7 @@ function topological_sort_aux(graph)
     branches::Dict = Dict()
     sources::Dict = Dict()
     toVisit::Vector{Symbol} = []
-    order::Vector{Symbol} = []
+    order::Vector{Class} = []
     visited::Dict{Symbol, Bool} = Dict()
     isSource::Dict{Symbol, Bool} = Dict()
 
@@ -37,7 +37,7 @@ function topological_sort_aux(graph)
     for cclass in graph
         if isSource[cclass.first]
             merge!(sources, Dict(cclass))
-            push!(order, cclass.first)
+            push!(order, eval(cclass.first))
         end
     end
 
@@ -58,7 +58,7 @@ end
 
 function topological_sort(graph)
     order = topological_sort_aux(graph)
-    append!(order, [:Object, :Top])
+    #append!(order, [:Object, :Top])
     return order
 end
 
@@ -316,6 +316,7 @@ set_imag!(c1,8)
 println(getproperty(c1, :imag)) # 8
 
 #Testing topological sorting
+println(classes)
 println(topological_sort(inh_graph))
 create_class(:SpecialPrinter, [], [:Printer])
 println(inh_graph)
