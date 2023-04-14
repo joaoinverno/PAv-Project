@@ -10,7 +10,7 @@ using Parameters
 
 ### Auxiliary functions
 
-function topological_sort(graph)
+function topological_sort_aux(graph)
     branches::Dict = Dict()
     sources::Dict = Dict()
     toVisit::Vector{Symbol} = []
@@ -49,10 +49,16 @@ function topological_sort(graph)
             end
             for c in toVisit
                 merge!(branches, Dict(c => graph[c]))
-                append!(order, topological_sort(branches))
+                append!(order, topological_sort_aux(branches))
             end
         end
     end
+    return order
+end
+
+function topological_sort(graph)
+    order = topological_sort_aux(graph)
+    append!(order, [:Object, :Top])
     return order
 end
 
