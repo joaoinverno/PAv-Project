@@ -28,8 +28,8 @@ function topological_sort_aux(graph)
 
     for cclass in graph
         for c in graph[cclass.first]
-            if isSource[c]
-                isSource[c] = false
+            if isSource[c.name]
+                isSource[c.name] = false
             end
         end
     end
@@ -45,7 +45,7 @@ function topological_sort_aux(graph)
         if !visited[cclass.first]
             visited[cclass.first] = true
             for sclass in graph[cclass.first]
-                push!(toVisit, sclass)
+                push!(toVisit, sclass.name)
             end
             for c in toVisit
                 merge!(branches, Dict(c => graph[c]))
@@ -139,6 +139,7 @@ end
 struct Class
     name::Symbol
     direct_slots::Array{Symbol}
+    direct_superclasses::Array{Class}
 end
 
 classes = Dict()
@@ -152,6 +153,7 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
 
     new_class_name = Symbol(class_name,"Class")
     direct_slots = []
+    isempty(superclasses) && class_name != :Top ? direct_super = [Object] : direct_super = superclasses
     if isempty(field_slots)
         @eval mutable struct $new_class_name end
 
@@ -159,7 +161,7 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
         classes[class_name] = eval(new_class_name)
 
         #creates global variable
-        aux = Class(class_name,direct_slots)
+        aux = Class(class_name,direct_slots,direct_super)
         globalvar = Symbol("$(class_name)")
         @eval global $globalvar = $aux
 
@@ -188,7 +190,7 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
         classes[class_name] = eval(new_class_name)
 
         #creates global variable
-        aux = Class(class_name,direct_slots)
+        aux = Class(class_name,direct_slots,direct_super)
         globalvar = Symbol("$(class_name)")
         @eval global $globalvar = $aux
 
@@ -203,7 +205,7 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
     end
 
     # set superClasses in inheritance graph
-    merge!(inh_graph, Dict(class_name => superclasses))
+    merge!(inh_graph, Dict(class_name => direct_super))
 end
 
 function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
@@ -251,6 +253,10 @@ function class_of(c)
         return eval(Symbol(aux))
     end
 end
+
+create_class(:Top,[],[])
+create_class(:Object,[],[Top])
+
 ### Playground
 
 create_class(:Line, [:from, :to], [])
@@ -292,9 +298,10 @@ create_class(:ComplexNumber, [:[real=2, reader=get_real, writer=set_real!],:[ima
 c1 = new(ComplexNumber, imag= 3)
 
 #test class_of function
-println(class_of(c1) === ComplexNumber)
-println(class_of(class_of(c1)) === Class)
-println(class_of(class_of(class_of(c1))) === Class)
+println(class_of(c1) === ComplexNumber) #true
+println(class_of(class_of(c1)) === Class) #true
+println(class_of(class_of(class_of(c1))) === Class) #true
+println(ComplexNumber.direct_superclasses == [Object]) #true
 
 # Test modifying a slot of the instance
 c1.real += 2
@@ -317,7 +324,12 @@ println(getproperty(c1, :imag)) # 8
 
 #Testing topological sorting
 println(classes)
-println(topological_sort(inh_graph))
-create_class(:SpecialPrinter, [], [:Printer])
-println(inh_graph)
-println(topological_sort(inh_graph))
+create_class(:SpecialPrinter, [], [Printer])
+println(SpecialPrinter.direct_superclasses == [Printer]) #true
+test = topological_sort(inh_graph)
+test_list = []
+for class in test
+    append!(test_list, [class.name])
+end
+
+println(test_list)
