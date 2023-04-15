@@ -178,6 +178,40 @@ classes = Dict()
 
 inh_graph::Dict = Dict()
 
+### Introspection
+
+function class_name(c::Class)
+    return c.name
+end
+
+function class_direct_slots(c::Class)
+    return c.direct_slots
+end
+
+function class_slots(c::Class)
+    slots::Vector{Symbol} = []
+    order = compute_cpl_aux(c,[])
+    order = append!([c], order)
+    for class in order
+        append!(slots,class.direct_slots)
+    end
+    return slots
+end
+
+function class_direct_superclasses(c::Class)
+    super::Vector{String} = []
+    for class in c.direct_superclasses
+        aux = "<Class $(class.name)>"
+        append!(super,[aux])
+    end
+
+    return super
+end
+
+function class_cpl(c::Class)
+    compute_cpl(c)
+end
+
 ### Main functions
 
 # Dynamically create Classes - With field names
@@ -358,25 +392,25 @@ println(getproperty(c1, :imag)) # 8
 println(classes)
 create_class(:SpecialPrinter, [], [Printer])
 println(SpecialPrinter.direct_superclasses == [Printer]) #true
-test = topological_sort(inh_graph)
-test_list = []
-for class in test
-    append!(test_list, [class.name])
-end
-
-println(test_list)
-
 
 #Testing compute_cpl
-println(inh_graph)
-println(SpecialPrinter)
+#println(inh_graph)
+#println(SpecialPrinter)
 println("------------------------------")
 
-create_class(:A, [], [])
+create_class(:A, [:a,:b], [])
 create_class(:B, [], [])
 create_class(:C, [], [])
-create_class(:D, [], [A, B])
+create_class(:D, [:d], [A, B])
 create_class(:E, [], [A, C])
 create_class(:F, [], [D, E])
 
 compute_cpl(F)
+
+println("------------------------------")
+println("testing Introspection functions for class D")
+println("class name: ",class_name(D))
+println("class direct slots: ", class_direct_slots(D))
+println("class slots: ", class_slots(D))
+println("class superclasses: ", class_direct_superclasses(D))
+class_cpl(D)
