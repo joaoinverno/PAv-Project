@@ -157,15 +157,11 @@ end
 
 
 macro defgeneric(x)
-    dump(x)
 
     name::Symbol = x.args[1]
-    println(name)
     args::Vector{Symbol} = []
 
-    println(x.args)
     for a in 2:length(x.args)
-        println(a)
         push!(args, x.args[a])
     end
 
