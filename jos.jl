@@ -62,6 +62,38 @@ function topological_sort(graph)
     return order
 end
 
+function compute_cpl_aux(class, order::Vector)
+
+    if length(class.direct_superclasses) > 0
+        for c in class.direct_superclasses
+            if !(c in order) && c !== Object && c !== Top
+                push!(order, c)
+            end
+        end
+        for c in class.direct_superclasses
+            order = compute_cpl_aux(c, order)
+        end
+    end
+    return order
+
+end
+
+function compute_cpl(class)
+
+    order::Vector = compute_cpl_aux(class, [])
+    order = append!([class], order)
+    order = append!(order, [Object, Top])
+    
+    print("[")
+    for c in order
+        if c == Top
+            println("<Class $(c.name)>]")
+        else
+            print("<Class $(c.name)>, ")
+        end
+    end
+end
+
 # Deals with the different slots formats
 function slots(x::Any)
     if typeof(x) == Symbol
@@ -333,3 +365,18 @@ for class in test
 end
 
 println(test_list)
+
+
+#Testing compute_cpl
+println(inh_graph)
+println(SpecialPrinter)
+println("------------------------------")
+
+create_class(:A, [], [])
+create_class(:B, [], [])
+create_class(:C, [], [])
+create_class(:D, [], [A, B])
+create_class(:E, [], [A, C])
+create_class(:F, [], [D, E])
+
+compute_cpl(F)
