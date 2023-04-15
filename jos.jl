@@ -285,6 +285,7 @@ end
 # Create instances from existing classes
 function new(class_name::Class; kwargs...)
     c = classes[class_name.name]
+    print_object(class_name, IO)
     return c(; kwargs...)
 end
 
@@ -325,6 +326,7 @@ end
 
 create_class(:Top,[],[])
 create_class(:Object,[],[Top])
+create_gen_method(:print_object, [:obj, :io], [:Any, :Any], "println(\"<\$(class_of(obj)) \$(string(objectid(obj), base=62))>\")")
 
 ### Playground
 
