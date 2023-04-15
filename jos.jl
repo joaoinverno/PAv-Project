@@ -156,11 +156,32 @@ macro defclass(name, superClasses, slotNames)
 end
 
 
-macro defgeneric(name, args...)
-    quote
-        print("Hello again");
+macro defgeneric(x)
+    dump(x)
+
+    name::Symbol = x.args[1]
+    println(name)
+    args::Vector{Symbol} = []
+
+    println(x.args)
+    for a in 2:length(x.args)
+        println(a)
+        push!(args, x.args[a])
     end
+
+    # arg_string = join(args, ", ")
+    # func_string = "function $name($arg_string)\n   throwGenericError($name, $args)\nend"
+    # eval(Meta.parse(func_string))
+
+    return create_gen_func(name, args)
+
 end
+
+# function create_gen_func(func_name::Symbol, args::Vector{Symbol})
+#     arg_string = join(args, ", ")
+#     func_string = "function $func_name($arg_string)\n   throwGenericError($func_name, $args)\nend"
+#     eval(Meta.parse(func_string))
+# end
 
 macro defmethod(name, args...)
     quote
@@ -419,3 +440,7 @@ println("class direct slots: ", class_direct_slots(D))
 println("class slots: ", class_slots(D))
 println("class superclasses: ", class_direct_superclasses(D))
 class_cpl(D)
+
+
+# Testing generic function macro
+@defgeneric add_macro(a, b, c)
