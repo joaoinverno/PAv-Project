@@ -66,12 +66,16 @@ function compute_cpl_aux(class, order::Vector)
 
     if length(class.direct_superclasses) > 0
         for c in class.direct_superclasses
-            if !(c in order) && c !== Object && c !== Top
+            if !(c in order)
                 push!(order, c)
-            end
+            end 
         end
-        for c in class.direct_superclasses
-            order = compute_cpl_aux(c, order)
+        for c in order
+            for sc in c.direct_superclasses
+                if !(sc in order)
+                    push!(order, sc)
+                end
+            end
         end
     end
     return order
@@ -82,7 +86,6 @@ function compute_cpl(class)
 
     order::Vector = compute_cpl_aux(class, [])
     order = append!([class], order)
-    order = append!(order, [Object, Top])
     
     print("[")
     for c in order
