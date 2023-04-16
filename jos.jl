@@ -161,11 +161,10 @@ macro defclass(x...)
         push!(superclasses, eval(c))
     end
 
-    create_class(name, slots, superclasses)
+    return create_class(name, slots, superclasses)
 
 end
 
-#function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vector)
 
 macro defgeneric(x)
 
@@ -176,18 +175,25 @@ macro defgeneric(x)
         push!(args, x.args[a])
     end
 
-    # arg_string = join(args, ", ")
-    # func_string = "function $name($arg_string)\n   throwGenericError($name, $args)\nend"
-    # eval(Meta.parse(func_string))
-
     return create_gen_func(name, args)
 
 end
 
-macro defmethod(name, args...)
-    quote
-        print("Hello... again");
+
+macro defmethod(x)
+
+    name::Symbol = x.args[1].args[1]
+    args::Vector{Symbol} = []
+    types::Vector{Symbol} = []
+    body = x.args[2].args[2]
+
+    for a in 2:length(x.args[1].args)
+        push!(args, x.args[1].args[a].args[1])
+        push!(types, x.args[1].args[a].args[2])
     end
+
+    return create_gen_method(name, args, types, body)
+
 end
 
 
@@ -451,4 +457,11 @@ class_cpl(D)
 # Testing class definition macro
 @defclass(test, [], [a, b])
 @defclass(test2, [test], [c, d])
+
+# Testing generic method macro
+@defmethod add_macro(a::Int64, b::Int64, c::Int64) = a + b + c
+add_macro(1, 2, 3)
+
 println(c1)
+
+
