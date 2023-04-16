@@ -9,59 +9,6 @@
 using Parameters
 
 ### Auxiliary functions
-
-function topological_sort_aux(graph)
-    branches::Dict = Dict()
-    sources::Dict = Dict()
-    toVisit::Vector{Symbol} = []
-    order::Vector{Class} = []
-    visited::Dict{Symbol, Bool} = Dict()
-    isSource::Dict{Symbol, Bool} = Dict()
-
-    for cclass in graph
-        if cclass !== nothing
-            merge!(visited, Dict(cclass.first => false))
-            merge!(isSource, Dict(cclass.first => true))
-        end
-
-    end
-
-    for cclass in graph
-        for c in graph[cclass.first]
-            if isSource[c.name]
-                isSource[c.name] = false
-            end
-        end
-    end
-
-    for cclass in graph
-        if isSource[cclass.first]
-            merge!(sources, Dict(cclass))
-            push!(order, eval(cclass.first))
-        end
-    end
-
-    for cclass in graph
-        if !visited[cclass.first]
-            visited[cclass.first] = true
-            for sclass in graph[cclass.first]
-                push!(toVisit, sclass.name)
-            end
-            for c in toVisit
-                merge!(branches, Dict(c => graph[c]))
-                append!(order, topological_sort_aux(branches))
-            end
-        end
-    end
-    return order
-end
-
-function topological_sort(graph)
-    order = topological_sort_aux(graph)
-    #append!(order, [:Object, :Top])
-    return order
-end
-
 function compute_cpl_aux(class, order::Vector)
 
     if length(class.direct_superclasses) > 0
@@ -267,14 +214,10 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
             slot = slots(:($field))
             field_name = slot[1]
             append!(direct_slots,[slot[1]])
-            if length(slot) == 2 && ismissing(slot[2])
-                :($field_name::$Any)
-            elseif length(slot) == 2 && !ismissing(slot[2])
+            if length(slot) == 2
                 :($field_name::$Any = $(slot[2]))
-            elseif length(slot) == 4 && !ismissing(slot[4])
+            elseif length(slot) == 4 
                 :($field_name::$Any = $(slot[4]))
-            elseif length(slot) == 4 && ismissing(slot[4])
-                :($field_name::$Any)
             end
         end
 
@@ -300,9 +243,6 @@ function create_class(class_name::Symbol, field_slots::Vector, superclasses::Vec
         end
 
     end
-
-    # set superClasses in inheritance graph
-    merge!(inh_graph, Dict(class_name => direct_super))
 end
 
 function getter_setter(name_getter::Symbol,name_setter::Symbol,class_name::Symbol,var_name::Symbol)
@@ -359,6 +299,7 @@ create_gen_method(:print_object, [:obj, :io], [:Any, :Any], "println(\"<\$(class
 
 ### Playground
 
+#=
 create_class(:Line, [:from, :to], [])
 
 create_class(:Circle, [:center, :radius], [])
@@ -386,6 +327,10 @@ let devices = [new(Screen), new(Printer)],
     end
 end
 
+
+function print_object(c::Class,IO)
+    println(IO,"< Class ",class_name(c)," >")
+end
 
 slots(:foo)
 slots(:(foo=123))
@@ -422,14 +367,8 @@ get_imag(c1)
 set_imag!(c1,8)
 println(getproperty(c1, :imag)) # 8
 
-#Testing topological sorting
-println(classes)
 create_class(:SpecialPrinter, [], [Printer])
 println(SpecialPrinter.direct_superclasses == [Printer]) #true
-
-#Testing compute_cpl
-#println(inh_graph)
-#println(SpecialPrinter)
 println("------------------------------")
 
 create_class(:A, [:a,:b], [])
@@ -459,9 +398,7 @@ class_cpl(D)
 @defclass(test2, [test], [c, d])
 
 # Testing generic method macro
-@defmethod add_macro(a::Int64, b::Int64, c::Int64) = a + b + c
-add_macro(1, 2, 3)
+@defmethod add_macro(a::Int64, b::Int64, c::Int64) = a + b + c 
+println(add_macro(1, 2, 3))
 
-println(c1)
-
-
+=#
