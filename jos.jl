@@ -307,8 +307,9 @@ end
 # Create instances from existing classes
 function new(class_name::Class; kwargs...)
     c = classes[class_name.name]
-    print_object(class_name, IO)
-    return c(; kwargs...)
+    a = c(; kwargs...)
+    print_object(a,IO)
+    return a
 end
 
 # Create generic functions
@@ -348,7 +349,7 @@ end
 
 create_class(:Top,[],[])
 create_class(:Object,[],[Top])
-create_gen_method(:print_object, [:obj, :io], [:Any, :Any], "println(\"<\$(class_of(obj)) \$(string(objectid(obj), base=62))>\")")
+create_gen_method(:print_object, [:obj, :io], [:Any, :Any], "println(\"<\$(class_name(class_of(obj))) \$(string(objectid(obj), base=62))>\")")
 
 ### Playground
 
@@ -450,3 +451,4 @@ class_cpl(D)
 # Testing class definition macro
 @defclass(test, [], [a, b])
 @defclass(test2, [test], [c, d])
+println(c1)
