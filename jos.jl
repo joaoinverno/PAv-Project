@@ -135,8 +135,13 @@ macro defmethod(x)
     body = x.args[2].args[2]
 
     for a in 2:length(x.args[1].args)
-        push!(args, x.args[1].args[a].args[1])
-        push!(types, x.args[1].args[a].args[2])
+        if typeof(x.args[1].args[a]) == Expr
+            push!(args, x.args[1].args[a].args[1])
+            push!(types, x.args[1].args[a].args[2])
+        else
+            push!(args, x.args[1].args[a])
+            push!(types, :Top)
+        end
     end
 
     return create_gen_method(name, args, types, body)
@@ -402,3 +407,47 @@ class_cpl(D)
 println(add_macro(1, 2, 3))
 
 =#
+
+
+# @defclass(Shape, [], [])
+# @defclass(Device, [], [])
+# @defgeneric draw(shape, device)
+# @defclass(Line, [Shape], [from, to])
+# @defclass(Circle, [Shape], [center, radius])
+# @defclass(Screen, [Device], [])
+# @defclass(Printer, [Device], [])
+# @defmethod draw(shape::Line, device::Screen) = println("Drawing a Line on Screen")
+# @defmethod draw(shape::Circle, device::Screen) = println("Drawing a Circle on Screen")
+# @defmethod draw(shape::Line, device::Printer) = println("Drawing a Line on Printer")
+# @defmethod draw(shape::Circle, device::Printer) = println("Drawing a Circle on Printer")
+
+# let devices = [new(Screen), new(Printer)], shapes = [new(Line), new(Circle)]
+#     for device in devices
+#         for shape in shapes
+#             draw(shape, device)
+#         end
+#     end
+# end
+
+# @defclass(ColorMixin, [],
+#     [[color, reader=get_color, writer=set_color!]])
+# @defmethod draw(s::ColorMixin, d::Device) =
+#     let previous_color = get_device_color(d)
+#         set_device_color!(d, get_color(s))
+#         call_next_method()
+#         set_device_color!(d, previous_color)
+#     end
+# @defclass(ColoredLine, [ColorMixin, Line], [])
+# @defclass(ColoredCircle, [ColorMixin, Circle], [])
+# @defclass(ColoredPrinter, [Printer],
+#     [[ink=:black, reader=get_device_color, writer=_set_device_color!]])
+# @defmethod set_device_color!(d::ColoredPrinter, color) = begin
+#     println("Changing printer ink color to $color")
+#     _set_device_color!(d, color)
+#     end
+# let shapes = [new(Line), new(ColoredCircle, color=:red), new(ColoredLine, color=:blue)],
+#     printer = new(ColoredPrinter, ink=:black)
+#     for shape in shapes
+#         draw(shape, printer)
+#     end
+# end
