@@ -150,7 +150,6 @@ end
 
 
 macro defclass(x...)
-    dump(x)
 
     name::Symbol = x[1]
     superclasses::Vector = []
@@ -161,12 +160,6 @@ macro defclass(x...)
     for c in x[2].args
         push!(superclasses, eval(c))
     end
-    #println(name)
-    println(x[2])
-    println(x[2].args)
-    
-    println(superclasses)
-    #println(slots)
 
     create_class(name, slots, superclasses)
 
